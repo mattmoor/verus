@@ -470,6 +470,34 @@ pub assume_specification<T>[ <[T]>::swap ](slice: &mut [T], a: usize, b: usize)
     no_unwind
 ;
 
+// fill
+// std moves `value` into the last element and fills the others with `clone_from(&value)`,
+// or with plain copies when cloning is trivial, so each element is a clone of `value`.
+pub assume_specification<T: Clone>[ <[T]>::fill ](slice: &mut [T], value: T)
+    ensures
+        final(slice)@.len() == old(slice)@.len(),
+        forall|i: int| #![trigger final(slice)@[i]]
+            0 <= i < final(slice)@.len() ==> cloned::<T>(value, final(slice)@[i]),
+;
+
+// rotate_left
+pub assume_specification<T>[ <[T]>::rotate_left ](slice: &mut [T], mid: usize)
+    requires
+        mid <= old(slice)@.len(),
+    ensures
+        final(slice)@ == old(slice)@[mid as int..] + old(slice)@[..mid as int],
+    no_unwind
+;
+
+// rotate_right
+pub assume_specification<T>[ <[T]>::rotate_right ](slice: &mut [T], k: usize)
+    requires
+        k <= old(slice)@.len(),
+    ensures
+        final(slice)@ == old(slice)@[old(slice)@.len() - k..] + old(slice)@[..old(slice)@.len() - k],
+    no_unwind
+;
+
 // The `iter` method of a `<T>` returns an iterator of type `Iter<'_, T>`,
 // so we specify that type here.
 #[verifier::external_type_specification]
