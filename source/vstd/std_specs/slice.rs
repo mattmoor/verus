@@ -470,6 +470,17 @@ pub assume_specification<T>[ <[T]>::swap ](slice: &mut [T], a: usize, b: usize)
     no_unwind
 ;
 
+// fill
+// std moves `value` into the last element and fills the others with `clone_from(&value)`,
+// or with plain copies when cloning is trivial.
+pub assume_specification<T: Clone>[ <[T]>::fill ](slice: &mut [T], value: T)
+    ensures
+        final(slice)@.len() == old(slice)@.len(),
+        forall|i: int| #![trigger final(slice)@[i]]
+            0 <= i < final(slice)@.len() - 1 ==> cloned_from::<T>(value, old(slice)@[i], final(slice)@[i]),
+        final(slice)@.len() > 0 ==> final(slice)@[final(slice)@.len() - 1] == value,
+;
+
 // The `iter` method of a `<T>` returns an iterator of type `Iter<'_, T>`,
 // so we specify that type here.
 #[verifier::external_type_specification]

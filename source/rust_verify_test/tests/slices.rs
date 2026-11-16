@@ -1418,6 +1418,129 @@ test_verify_one_file! {
 }
 
 test_verify_one_file! {
+    #[test] test_slice_fill verus_code! {
+        use vstd::prelude::*;
+
+        fn test_slice(s: &mut [u8])
+            requires
+                old(s)@ == seq![1u8, 2, 3],
+        {
+            s.fill(7);
+            assert(s@ == seq![7u8, 7, 7]);
+        }
+
+        fn test_empty(s: &mut [u8])
+            requires
+                old(s)@.len() == 0,
+        {
+            s.fill(7);
+            assert(s@.len() == 0);
+        }
+
+        fn test_array() {
+            let mut a: [u16; 4] = [10, 20, 30, 40];
+            a.fill(0);
+            assert(a@ == seq![0u16, 0, 0, 0]);
+        }
+
+        fn test_vec() {
+            let mut v: Vec<u32> = vec![1, 2];
+            v.fill(5);
+            assert(v@ == seq![5u32, 5]);
+        }
+
+        fn test_generic<T: Clone>(s: &mut [T], t: T)
+            ensures
+                final(s)@.len() == old(s)@.len(),
+                forall|i: int| 0 <= i < final(s)@.len() - 1 ==> cloned_from(t, old(s)@[i], #[trigger] final(s)@[i]),
+                final(s)@.len() > 0 ==> final(s)@[final(s)@.len() - 1] == t,
+        {
+            s.fill(t);
+        }
+
+        fn test_wrong_value(s: &mut [u8])
+            requires
+                old(s)@.len() == 2,
+        {
+            s.fill(7);
+            assert(s@[1] == 8); // FAILS
+        }
+    } => Err(err) => assert_one_fails(err)
+}
+
+test_verify_one_file! {
+    #[test] test_slice_fill_clone verus_code! {
+        use vstd::prelude::*;
+
+        pub struct X {
+            pub u: u64,
+        }
+
+        impl Clone for X {
+            fn clone(&self) -> (s: Self)
+                ensures s.u == (if self.u < 1000 { self.u + 1 } else { 1000 })
+            {
+                X { u: if self.u < 1000 { self.u + 1 } else { 1000 } }
+            }
+        }
+
+        fn test_clone(s: &mut [X])
+            requires
+                old(s)@.len() == 3,
+        {
+            s.fill(X { u: 20 });
+            assert(s@.len() == 3);
+            assert(s@[0].u == 20 || s@[0].u == 21);
+            assert(s@[2].u == 20 || s@[2].u == 21);
+        }
+
+        fn test_clone_fail(s: &mut [X])
+            requires
+                old(s)@.len() == 3,
+        {
+            s.fill(X { u: 20 });
+            assert(s@[0].u == 20); // FAILS
+        }
+    } => Err(err) => assert_one_fails(err)
+}
+
+test_verify_one_file! {
+    // std's `fill` calls `clone_from` for every element but the last, so a
+    // `clone_from` override that diverges from `clone` decides those elements.
+    #[test] test_slice_fill_clone_from_override verus_code! {
+        use vstd::prelude::*;
+
+        pub struct S {
+            pub u: u64,
+        }
+
+        impl Clone for S {
+            fn clone(&self) -> (r: Self)
+                ensures r.u == self.u,
+            {
+                S { u: self.u }
+            }
+
+            fn clone_from(&mut self, source: &Self) {
+                self.u = 7;
+            }
+        }
+
+        fn test_last_is_moved() {
+            let mut a = [S { u: 1 }, S { u: 1 }];
+            a.fill(S { u: 5 });
+            assert(a[1].u == 5);
+        }
+
+        fn test_override_not_clone() {
+            let mut a = [S { u: 1 }, S { u: 1 }];
+            a.fill(S { u: 5 });
+            assert(a[0].u == 5); // FAILS
+        }
+    } => Err(err) => assert_one_fails(err)
+}
+
+test_verify_one_file! {
     // GitHub issue #2968
     #[test] test_range_inclusive_exhausted_iter verus_code! {
         use core::ops::{Bound, RangeBounds};
