@@ -20,6 +20,86 @@ pub open spec fn next_multiple_of(x: int, y: int) -> int
     }
 }
 
+// The `uN_swap_bytes` fns below name byte `k` of `x` (counting from the least significant)
+// `bk` and move it to byte `N - 1 - k`. Each byte is masked before it is shifted left, so
+// no intermediate value leaves the type's range, and the definitions evaluate with
+// `by (compute)` as well as `by (bit_vector)`.
+/// `x.swap_bytes()`: the bytes of `x` in reverse order.
+pub open spec fn u8_swap_bytes(x: u8) -> u8 {
+    x
+}
+
+/// `x.swap_bytes()`: the bytes of `x` in reverse order.
+pub open spec fn u16_swap_bytes(x: u16) -> u16 {
+    let b0 = x & 0xff;
+    let b1 = (x >> 8u32) & 0xff;
+    (b0 << 8u32) | b1
+}
+
+/// `x.swap_bytes()`: the bytes of `x` in reverse order.
+pub open spec fn u32_swap_bytes(x: u32) -> u32 {
+    let b0 = x & 0xff;
+    let b1 = (x >> 8u32) & 0xff;
+    let b2 = (x >> 16u32) & 0xff;
+    let b3 = (x >> 24u32) & 0xff;
+    (b0 << 24u32) | (b1 << 16u32) | (b2 << 8u32) | b3
+}
+
+/// `x.swap_bytes()`: the bytes of `x` in reverse order.
+pub open spec fn u64_swap_bytes(x: u64) -> u64 {
+    let b0 = x & 0xff;
+    let b1 = (x >> 8u32) & 0xff;
+    let b2 = (x >> 16u32) & 0xff;
+    let b3 = (x >> 24u32) & 0xff;
+    let b4 = (x >> 32u32) & 0xff;
+    let b5 = (x >> 40u32) & 0xff;
+    let b6 = (x >> 48u32) & 0xff;
+    let b7 = (x >> 56u32) & 0xff;
+    (b0 << 56u32) | (b1 << 48u32) | (b2 << 40u32) | (b3 << 32u32) | (b4 << 24u32) | (b5 << 16u32)
+        | (b6 << 8u32) | b7
+}
+
+/// `x.swap_bytes()`: the bytes of `x` in reverse order.
+pub open spec fn u128_swap_bytes(x: u128) -> u128 {
+    let b0 = x & 0xff;
+    let b1 = (x >> 8u32) & 0xff;
+    let b2 = (x >> 16u32) & 0xff;
+    let b3 = (x >> 24u32) & 0xff;
+    let b4 = (x >> 32u32) & 0xff;
+    let b5 = (x >> 40u32) & 0xff;
+    let b6 = (x >> 48u32) & 0xff;
+    let b7 = (x >> 56u32) & 0xff;
+    let b8 = (x >> 64u32) & 0xff;
+    let b9 = (x >> 72u32) & 0xff;
+    let b10 = (x >> 80u32) & 0xff;
+    let b11 = (x >> 88u32) & 0xff;
+    let b12 = (x >> 96u32) & 0xff;
+    let b13 = (x >> 104u32) & 0xff;
+    let b14 = (x >> 112u32) & 0xff;
+    let b15 = (x >> 120u32) & 0xff;
+    (b0 << 120u32) | (b1 << 112u32) | (b2 << 104u32) | (b3 << 96u32) | (b4 << 88u32) | (b5 << 80u32)
+        | (b6 << 72u32) | (b7 << 64u32) | (b8 << 56u32) | (b9 << 48u32) | (b10 << 40u32) | (b11
+        << 32u32) | (b12 << 24u32) | (b13 << 16u32) | (b14 << 8u32) | b15
+}
+
+/// `x.swap_bytes()`: the bytes of `x` in reverse order, at the width of `usize`.
+pub open spec fn usize_swap_bytes(x: usize) -> usize {
+    let b0 = x & 0xff;
+    let b1 = (x >> 8u32) & 0xff;
+    let b2 = (x >> 16u32) & 0xff;
+    let b3 = (x >> 24u32) & 0xff;
+    if usize::BITS == 32 {
+        (b0 << 24u32) | (b1 << 16u32) | (b2 << 8u32) | b3
+    } else {
+        let b4 = (x >> 32u32) & 0xff;
+        let b5 = (x >> 40u32) & 0xff;
+        let b6 = (x >> 48u32) & 0xff;
+        let b7 = (x >> 56u32) & 0xff;
+        (b0 << 56u32) | (b1 << 48u32) | (b2 << 40u32) | (b3 << 32u32) | (b4 << 24u32) | (b5
+            << 16u32) | (b6 << 8u32) | b7
+    }
+}
+
 } // verus!
 macro_rules! num_specs {
     ($uN: ty, $iN: ty, $mod_u_tmp:ident, $mod_i_tmp:ident, $mod_u:ident, $mod_i:ident, $range:expr) => {
@@ -289,6 +369,33 @@ macro_rules! num_specs {
                     if y == 0 { x == 0 } else { x % y == 0 }
                 )
                 no_unwind;
+
+            #[verifier::allow_in_spec]
+            #[cfg(not(verus_verify_core))]
+            pub assume_specification[<$uN>::div_ceil](lhs: $uN, rhs: $uN) -> $uN
+                requires rhs != 0,
+                returns (
+                    if lhs % rhs == 0 {
+                        lhs / rhs
+                    } else {
+                        (lhs / rhs + 1) as $uN
+                    }
+                )
+                opens_invariants none
+                no_unwind;
+
+            #[verifier::allow_in_spec]
+            #[cfg(not(verus_verify_core))]
+            pub assume_specification[<$uN>::abs_diff](x: $uN, y: $uN) -> $uN
+                returns (
+                    if x < y {
+                        (y - x) as $uN
+                    } else {
+                        (x - y) as $uN
+                    }
+                )
+                opens_invariants none
+                no_unwind;
         }
 
         // Signed ints (i8, i16, etc.)
@@ -356,6 +463,48 @@ macro_rules! num_specs {
             pub assume_specification[<$iN as PartialOrd<$iN>>::gt](x: &$iN, y: &$iN) -> bool;
 
             pub assume_specification[<$iN as PartialOrd<$iN>>::ge](x: &$iN, y: &$iN) -> bool;
+
+            // `MIN.abs()` overflows: it panics with overflow checks on and returns `MIN`
+            // without them, so the spec requires `x != MIN` as `-x` would.
+            #[verifier::allow_in_spec]
+            #[cfg(not(verus_verify_core))]
+            pub assume_specification[<$iN>::abs](x: $iN) -> $iN
+                requires x != <$iN>::MIN,
+                returns (
+                    if x < 0 {
+                        -x
+                    } else {
+                        x as int
+                    }
+                ) as $iN
+                opens_invariants none
+                no_unwind;
+
+            #[verifier::allow_in_spec]
+            #[cfg(not(verus_verify_core))]
+            pub assume_specification[<$iN>::unsigned_abs](x: $iN) -> $uN
+                returns (
+                    if x < 0 {
+                        -x
+                    } else {
+                        x as int
+                    }
+                ) as $uN
+                opens_invariants none
+                no_unwind;
+
+            #[verifier::allow_in_spec]
+            #[cfg(not(verus_verify_core))]
+            pub assume_specification[<$iN>::abs_diff](x: $iN, y: $iN) -> $uN
+                returns (
+                    if x < y {
+                        y - x
+                    } else {
+                        x - y
+                    }
+                ) as $uN
+                opens_invariants none
+                no_unwind;
 
             #[verifier::allow_in_spec]
             #[cfg(not(verus_verify_core))]
@@ -534,3 +683,36 @@ num_specs!(
     isize_specs,
     (usize::MAX - usize::MIN + 1)
 );
+
+macro_rules! swap_bytes_specs {
+    ($uN: ty, $iN: ty, $mod_tmp:ident, $spec:ident) => {
+        verus! {
+
+        mod $mod_tmp {
+            use super::*;
+
+            #[verifier::allow_in_spec]
+            #[cfg(not(verus_verify_core))]
+            pub assume_specification[<$uN>::swap_bytes](x: $uN) -> $uN
+                returns $spec(x)
+                opens_invariants none
+                no_unwind;
+
+            #[verifier::allow_in_spec]
+            #[cfg(not(verus_verify_core))]
+            pub assume_specification[<$iN>::swap_bytes](x: $iN) -> $iN
+                returns $spec(x as $uN) as $iN
+                opens_invariants none
+                no_unwind;
+        }
+
+        }
+    };
+}
+
+swap_bytes_specs!(u8, i8, u8_swap_bytes_tmp, u8_swap_bytes);
+swap_bytes_specs!(u16, i16, u16_swap_bytes_tmp, u16_swap_bytes);
+swap_bytes_specs!(u32, i32, u32_swap_bytes_tmp, u32_swap_bytes);
+swap_bytes_specs!(u64, i64, u64_swap_bytes_tmp, u64_swap_bytes);
+swap_bytes_specs!(u128, i128, u128_swap_bytes_tmp, u128_swap_bytes);
+swap_bytes_specs!(usize, isize, usize_swap_bytes_tmp, usize_swap_bytes);
