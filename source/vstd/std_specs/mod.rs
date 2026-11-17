@@ -35,6 +35,7 @@ pub mod result;
 
 pub mod slice;
 pub mod task;
+pub mod time;
 
 #[cfg(feature = "alloc")]
 pub mod vec;
