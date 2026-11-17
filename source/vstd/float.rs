@@ -134,3 +134,61 @@ pub fn float_cast<From: Copy + IeeeFloatCast<To>, To>(from: From) -> (to: To)
 }
 
 } // verus!
+// The bit-level queries on `f32` and `f64`, specified by the bit patterns
+// `FloatBitsProperties` describes.
+macro_rules! float_bits_specs {
+    ($fN: ty, $bits: ty, $mod_tmp: ident) => {
+        verus! {
+
+        mod $mod_tmp {
+            use super::*;
+
+            #[verifier::allow_in_spec]
+            #[cfg(not(verus_verify_core))]
+            pub assume_specification[<$fN>::to_bits](f: $fN) -> $bits
+                returns f.to_bits_spec()
+                opens_invariants none
+                no_unwind;
+
+            #[verifier::allow_in_spec]
+            #[cfg(not(verus_verify_core))]
+            pub assume_specification[<$fN>::is_nan](f: $fN) -> bool
+                returns f.is_nan_spec()
+                opens_invariants none
+                no_unwind;
+
+            #[verifier::allow_in_spec]
+            #[cfg(not(verus_verify_core))]
+            pub assume_specification[<$fN>::is_infinite](f: $fN) -> bool
+                returns f.is_infinite_spec()
+                opens_invariants none
+                no_unwind;
+
+            #[verifier::allow_in_spec]
+            #[cfg(not(verus_verify_core))]
+            pub assume_specification[<$fN>::is_finite](f: $fN) -> bool
+                returns f.is_finite_spec()
+                opens_invariants none
+                no_unwind;
+
+            #[verifier::allow_in_spec]
+            #[cfg(not(verus_verify_core))]
+            pub assume_specification[<$fN>::is_sign_negative](f: $fN) -> bool
+                returns f.is_sign_negative_spec()
+                opens_invariants none
+                no_unwind;
+
+            #[verifier::allow_in_spec]
+            #[cfg(not(verus_verify_core))]
+            pub assume_specification[<$fN>::is_sign_positive](f: $fN) -> bool
+                returns !f.is_sign_negative_spec()
+                opens_invariants none
+                no_unwind;
+        }
+
+        }
+    };
+}
+
+float_bits_specs!(f32, u32, f32_bits_specs_tmp);
+float_bits_specs!(f64, u64, f64_bits_specs_tmp);
